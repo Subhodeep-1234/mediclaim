@@ -11,18 +11,16 @@ const app = express();
 app.use(express.json());
 app.use(express.static(__dirname));
 
-if (!process.env.GOOGLE_SERVICE_ACCOUNT_KEY_B64) {
+if (!process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
   console.error(
-    "Missing GOOGLE_SERVICE_ACCOUNT_KEY_B64 env var. Set it in the deploy " +
+    "Missing GOOGLE_SERVICE_ACCOUNT_KEY env var. Set it in the deploy " +
     "platform's environment/secrets config -- .env is gitignored and never " +
     "reaches the container."
   );
   process.exit(1);
 }
 
-const serviceAccountKey = JSON.parse(
-  Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_KEY_B64, "base64").toString("utf-8")
-);
+const serviceAccountKey = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
 const auth = new google.auth.GoogleAuth({
   credentials: serviceAccountKey,
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
