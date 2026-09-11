@@ -3,7 +3,6 @@ const path = require("path");
 const express = require("express");
 const { google } = require("googleapis");
 const PDFDocument = require("pdfkit");
-const nodemailer = require("nodemailer");
 
 const PORT = process.env.PORT || 3000;
 const SPREADSHEET_ID = "1CrItGvLoD31VYSiCf4HQDoA7UUdkEdIvKzbd2s7xsuc";
@@ -227,39 +226,44 @@ function generateAdditionPdf(payload) {
   });
 }
 
-function sendAdditionEmail(payload, pdfBuffer) {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.error("Missing GMAIL_USER/GMAIL_APP_PASSWORD env vars -- skipping addition email.");
-    return Promise.resolve();
+async function sendAdditionEmail(payload, pdfBuffer) {
+  if (!process.env.RESEND_API_KEY) {
+    console.error("Missing RESEND_API_KEY env var -- skipping addition email.");
+    return;
   }
 
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD
-    }
+  // Resend's shared sandbox sender works without verifying a domain, but
+  // set RESEND_FROM to a verified @alcoverealty.in address once one exists
+  // -- it reads better to recipients and is far less likely to be marked spam.
+  const fromAddress = process.env.RESEND_FROM || "onboarding@resend.dev";
+
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      from: fromAddress,
+      to: ["manager.hr@alcoverealty.in"],
+      cc: ["hr@alcoverealty.in"],
+      subject: "Request for Addition of Member(s) under Group Mediclaim Policy",
+      text:
+        "Dear Sir/Madam,\n" +
+        "We would like to request the addition of the following member(s) under our Group Mediclaim Policy.\n" +
+        "Kindly confirm the addition and share the e-card(s) at the earliest.",
+      attachments: [
+        {
+          filename: `Mediclaim-Addition-${payload.empId}.pdf`,
+          content: pdfBuffer.toString("base64")
+        }
+      ]
+    })
   });
 
-  return transporter.sendMail({
-    from: process.env.GMAIL_USER,
-    to: "manager.hr@alcoverealty.in",
-    cc: "hr@alcoverealty.in",
-    subject: "Request for Addition of Member(s) under Group Mediclaim Policy",
-    text:
-      "Dear Sir/Madam,\n" +
-      "We would like to request the addition of the following member(s) under our Group Mediclaim Policy.\n" +
-      "Kindly confirm the addition and share the e-card(s) at the earliest.",
-    attachments: [
-      {
-        filename: `Mediclaim-Addition-${payload.empId}.pdf`,
-        content: pdfBuffer,
-        contentType: "application/pdf"
-      }
-    ]
-  });
+  if (!res.ok) {
+    throw new Error(`Resend API error ${res.status}: ${await res.text()}`);
+  }
 }
 
 let additionsSheetIdPromise = null;
