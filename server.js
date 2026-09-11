@@ -42,7 +42,10 @@ const sheetsPromise = auth.getClient().then((authClient) => google.sheets({ vers
 // "last Sl. No." before either has appended, and collide.
 let writeQueue = Promise.resolve();
 
-app.post("/api/submit", (req, res) => {
+// POSTed to "/" (not a separate path) because the reverse proxy in front of
+// this app only forwards the root path -- a distinct "/api/..." path 404s
+// before it ever reaches this server.
+app.post("/", (req, res) => {
   const result = writeQueue.then(() => handleSubmit(req.body));
   writeQueue = result.catch(() => {});
   result
