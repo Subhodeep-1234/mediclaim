@@ -2,6 +2,8 @@ require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const { google } = require("googleapis");
+const PDFDocument = require("pdfkit");
+const nodemailer = require("nodemailer");
 
 const PORT = process.env.PORT || 3000;
 const SPREADSHEET_ID = "1CrItGvLoD31VYSiCf4HQDoA7UUdkEdIvKzbd2s7xsuc";
@@ -163,6 +165,101 @@ async function handleSubmit(payload) {
   });
 
   await clearBoldOnRange(sheets, appendResult.data.updates.updatedRange);
+
+  // The sheet write above is the critical action -- a failure here (PDF
+  // generation or the email provider being unreachable) is logged but must
+  // not fail the submission the employee already sees confirmed.
+  try {
+    const pdfBuffer = await generateAdditionPdf(payload);
+    await sendAdditionEmail(payload, pdfBuffer);
+  } catch (err) {
+    console.error("Addition PDF/email failed:", err);
+  }
+}
+
+const PDF_COLUMNS = [
+  { header: "Corporate_name", width: 135 },
+  { header: "Full Name", width: 84 },
+  { header: "DOJ/DOM", width: 55 },
+  { header: "DOB", width: 58 },
+  { header: "Gender", width: 40 },
+  { header: "Relationship", width: 75 },
+  { header: "Sum Insured", width: 68 }
+];
+
+function generateAdditionPdf(payload) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 40, size: "A4" });
+    const chunks = [];
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    doc.fontSize(14).font("Helvetica-Bold").text("Group Mediclaim - Addition Request", { align: "center" });
+    doc.moveDown(0.5);
+    doc.fontSize(10).font("Helvetica").text(`Employee ID: ${payload.empId}`);
+    doc.text(`Addition Date: ${payload.additionDate}`);
+    doc.moveDown();
+
+    const startX = doc.page.margins.left;
+    let y = doc.y;
+    const rowHeight = 22;
+
+    function drawRow(values, isHeader) {
+      let x = startX;
+      doc.font(isHeader ? "Helvetica-Bold" : "Helvetica").fontSize(9);
+      if (isHeader) doc.rect(startX, y, PDF_COLUMNS.reduce((s, c) => s + c.width, 0), rowHeight).fill("#eef2f8");
+      doc.fillColor("#16324e");
+      PDF_COLUMNS.forEach((col, i) => {
+        doc.rect(x, y, col.width, rowHeight).stroke("#dde4ee");
+        doc.text(String(values[i] || ""), x + 4, y + 6, { width: col.width - 8, height: rowHeight - 8, ellipsis: true });
+        x += col.width;
+      });
+      y += rowHeight;
+    }
+
+    drawRow(PDF_COLUMNS.map((c) => c.header), true);
+    payload.members.forEach((m) => {
+      drawRow([payload.company, m.fullName, payload.additionDate, m.dob, m.gender, m.relationship, ""], false);
+    });
+
+    doc.end();
+  });
+}
+
+function sendAdditionEmail(payload, pdfBuffer) {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.error("Missing GMAIL_USER/GMAIL_APP_PASSWORD env vars -- skipping addition email.");
+    return Promise.resolve();
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD
+    }
+  });
+
+  return transporter.sendMail({
+    from: process.env.GMAIL_USER,
+    to: "manager.hr@alcoverealty.in",
+    cc: "hr@alcoverealty.in",
+    subject: "Request for Addition of Member(s) under Group Mediclaim Policy",
+    text:
+      "Dear Sir/Madam,\n" +
+      "We would like to request the addition of the following member(s) under our Group Mediclaim Policy.\n" +
+      "Kindly confirm the addition and share the e-card(s) at the earliest.",
+    attachments: [
+      {
+        filename: `Mediclaim-Addition-${payload.empId}.pdf`,
+        content: pdfBuffer,
+        contentType: "application/pdf"
+      }
+    ]
+  });
 }
 
 let additionsSheetIdPromise = null;
