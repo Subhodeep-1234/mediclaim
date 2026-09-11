@@ -11,6 +11,18 @@ const app = express();
 app.use(express.json());
 app.use(express.static(__dirname));
 
+// Wide-open CORS: only relevant once the frontend posts to a different
+// origin than the one it's served from (e.g. a direct platform URL that
+// isn't behind the GET-only reverse proxy at employees.alcoverealty.in).
+// Same-origin requests ignore these headers entirely.
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
+
 app.get("/health", (req, res) => res.status(200).send("ok"));
 
 app.get("/", (req, res) => {
