@@ -154,12 +154,50 @@ async function handleSubmit(payload) {
     ];
   });
 
-  await sheets.spreadsheets.values.append({
+  const appendResult = await sheets.spreadsheets.values.append({
     spreadsheetId: SPREADSHEET_ID,
     range: `${SHEET_NAME}!A:M`,
     valueInputOption: "USER_ENTERED",
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: rows }
+  });
+
+  await clearBoldOnRange(sheets, appendResult.data.updates.updatedRange);
+}
+
+let additionsSheetIdPromise = null;
+function getAdditionsSheetId(sheets) {
+  if (!additionsSheetIdPromise) {
+    additionsSheetIdPromise = sheets.spreadsheets
+      .get({ spreadsheetId: SPREADSHEET_ID })
+      .then((res) => res.data.sheets.find((s) => s.properties.title === SHEET_NAME).properties.sheetId);
+  }
+  return additionsSheetIdPromise;
+}
+
+// New rows appended via INSERT_ROWS pick up the formatting of the row above
+// them, which was bold here -- explicitly reset just the written range back
+// to normal weight rather than touching the rest of the sheet.
+async function clearBoldOnRange(sheets, updatedRange) {
+  const match = updatedRange.match(/![A-Z]+(\d+):[A-Z]+(\d+)/);
+  if (!match) return;
+  const startRowIndex = parseInt(match[1], 10) - 1;
+  const endRowIndex = parseInt(match[2], 10);
+  const sheetId = await getAdditionsSheetId(sheets);
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SPREADSHEET_ID,
+    requestBody: {
+      requests: [
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex, endRowIndex, startColumnIndex: 0, endColumnIndex: 13 },
+            cell: { userEnteredFormat: { textFormat: { bold: false } } },
+            fields: "userEnteredFormat.textFormat.bold"
+          }
+        }
+      ]
+    }
   });
 }
 
