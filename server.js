@@ -9,7 +9,9 @@ const SHEET_NAME = "Additions";
 
 const app = express();
 app.use(express.json());
-app.use(express.static(__dirname));
+// index: false -- otherwise this auto-serves index.html for GET "/" before
+// our own route below ever runs, bypassing the ?submit= query-string check.
+app.use(express.static(__dirname, { index: false }));
 
 // Wide-open CORS: only relevant once the frontend posts to a different
 // origin than the one it's served from (e.g. a direct platform URL that
@@ -26,6 +28,13 @@ app.use((req, res, next) => {
 app.get("/health", (req, res) => res.status(200).send("ok"));
 
 app.get("/", (req, res) => {
+  // The reverse proxy in front of this app only forwards GET requests to
+  // "/", so a form submission is smuggled in as a GET with the payload in
+  // the query string rather than a POST body.
+  if (req.query.submit) {
+    return handleSubmitRequest(req.query.submit, res);
+  }
+
   res.sendFile(path.join(__dirname, "index.html"), (err) => {
     if (err) {
       console.error("Could not serve index.html from", __dirname, "-", err.message);
@@ -54,11 +63,25 @@ const sheetsPromise = auth.getClient().then((authClient) => google.sheets({ vers
 // "last Sl. No." before either has appended, and collide.
 let writeQueue = Promise.resolve();
 
-// POSTed to "/" (not a separate path) because the reverse proxy in front of
-// this app only forwards the root path -- a distinct "/api/..." path 404s
-// before it ever reaches this server.
+// Kept in case a direct (non-proxied) URL for this app ever turns up --
+// POSTed to "/" rather than a separate path, since the reverse proxy in
+// front of employees.alcoverealty.in only forwards the root path.
 app.post("/", (req, res) => {
-  const result = writeQueue.then(() => handleSubmit(req.body));
+  submitAndRespond(req.body, res);
+});
+
+function handleSubmitRequest(rawJson, res) {
+  let payload;
+  try {
+    payload = JSON.parse(rawJson);
+  } catch (err) {
+    return res.status(400).json({ ok: false, error: "Invalid payload" });
+  }
+  submitAndRespond(payload, res);
+}
+
+function submitAndRespond(payload, res) {
+  const result = writeQueue.then(() => handleSubmit(payload));
   writeQueue = result.catch(() => {});
   result
     .then(() => res.json({ ok: true }))
@@ -66,7 +89,7 @@ app.post("/", (req, res) => {
       console.error("submit failed:", err);
       res.status(500).json({ ok: false, error: String((err && err.message) || err) });
     });
-});
+}
 
 async function handleSubmit(payload) {
   if (

@@ -438,11 +438,9 @@
       members: members
     };
 
-    fetch("/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    })
+    // Sent as a GET with the payload in the query string -- the reverse
+    // proxy in front of this app only forwards GET requests to "/".
+    fetch("/?" + new URLSearchParams({ submit: JSON.stringify(payload) }))
       .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
       .then(function (result) {
         if (result.ok && result.data.ok) {
