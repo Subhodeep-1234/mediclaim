@@ -93,6 +93,21 @@ function submitAndRespond(payload, res) {
     });
 }
 
+function nowISTString() {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).formatToParts(new Date());
+  const get = (type) => parts.find((p) => p.type === type).value;
+  return `${get("day")}-${get("month")}-${get("year")} ${get("hour")}:${get("minute")}:${get("second")}`;
+}
+
 async function handleSubmit(payload) {
   if (
     !payload ||
@@ -118,6 +133,8 @@ async function handleSubmit(payload) {
     if (!isNaN(n) && n > nextSlNo) nextSlNo = n;
   });
 
+  const submittedAt = nowISTString();
+
   const rows = payload.members.map((m) => {
     nextSlNo++;
     return [
@@ -132,13 +149,14 @@ async function handleSubmit(payload) {
       m.relationship,
       "",
       "",
-      ""
+      "",
+      submittedAt
     ];
   });
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: SPREADSHEET_ID,
-    range: `${SHEET_NAME}!A:L`,
+    range: `${SHEET_NAME}!A:M`,
     valueInputOption: "USER_ENTERED",
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: rows }
