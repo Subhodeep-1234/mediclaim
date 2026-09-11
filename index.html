@@ -150,6 +150,27 @@
     color: var(--navy);
   }
   label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin: 12px 0 5px 0; }
+  label .req { color: var(--error); margin-left: 2px; }
+  .ack-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .ack-row input[type="checkbox"] {
+    margin-top: 3px;
+    width: 15px;
+    height: 15px;
+    accent-color: var(--navy);
+    flex-shrink: 0;
+  }
+  .ack-row label {
+    margin: 0;
+    font-size: 12.5px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--gold);
+  }
   select, input[type="text"], input[type="date"] {
     width: 100%;
     padding: 10px 11px;
@@ -276,12 +297,12 @@
   <h1>Mediclaim Addition Request</h1>
   <div class="subtitle">Fill in your details below. If you are adding family members, use &ldquo;+ Add Family Member&rdquo; for each one.</div>
 
-  <label for="company">Company Name</label>
+  <label for="company">Company Name<span class="req">*</span></label>
   <select id="company" required>
     <option value="">Select company...</option>
   </select>
 
-  <label for="empIdSearch">Employee ID</label>
+  <label for="empIdSearch">Employee ID<span class="req">*</span></label>
   <div class="combo">
     <input type="text" id="empIdSearch" placeholder="Type your Emp ID or name to search..." autocomplete="off" required>
     <input type="hidden" id="empId">
@@ -408,19 +429,22 @@
       ? '<div class="readonly full-name-readonly">-</div>'
       : '<input type="text" class="full-name-input" placeholder="Family member&#39;s full name" required>';
 
+    var ackId = "ack-" + idx;
+    var nameLabel = isPrimary ? "Full Name" : 'Full Name<span class="req">*</span>';
+
     block.innerHTML =
       "<h2>" + titleText + removeBtn + "</h2>" +
-      "<label>Full Name</label>" + nameFieldHtml +
+      "<label>" + nameLabel + "</label>" + nameFieldHtml +
       "<label>Addition Date</label>" +
       ('<div class="readonly addition-date">' + FORM_DATA.additionDate + "</div>") +
-      "<label>Date of Birth</label>" +
+      '<label>Date of Birth<span class="req">*</span></label>' +
       '<input type="date" class="dob-input" required>' +
-      "<label>Gender</label>" +
+      '<label>Gender<span class="req">*</span></label>' +
       '<select class="gender-select" required>' +
         '<option value="">Select...</option>' +
         FORM_DATA.genders.map(function (g) { return '<option value="' + g + '">' + g + "</option>"; }).join("") +
       "</select>" +
-      "<label>Relationship</label>" +
+      '<label>Relationship<span class="req">*</span></label>' +
       '<select class="relationship-select" required>' +
         '<option value="">Select...</option>' +
         FORM_DATA.relationships.map(function (r) {
@@ -428,15 +452,25 @@
           return '<option value="' + r + '"' + sel + ">" + r + "</option>";
         }).join("") +
       "</select>" +
-      '<div class="note">To add your parents, you need to pay half the premium amount yourself, and the other half will be covered by the company.</div>';
+      '<div class="note">' +
+        "To add your parents, you need to pay half the premium amount yourself, and the other half will be covered by the company." +
+        '<div class="ack-row">' +
+          '<input type="checkbox" class="ack-checkbox" id="' + ackId + '">' +
+          '<label for="' + ackId + '">I acknowledge and agree to the parent premium-sharing condition above.</label>' +
+        "</div>" +
+      "</div>";
 
     container.appendChild(block);
 
     var relSelect = block.querySelector(".relationship-select");
     var noteDiv = block.querySelector(".note");
+    var ackCheckbox = block.querySelector(".ack-checkbox");
     relSelect.addEventListener("change", function () {
       var v = relSelect.value.toLowerCase();
-      noteDiv.classList.toggle("show", v === "father" || v === "mother");
+      var isParent = v === "father" || v === "mother";
+      noteDiv.classList.toggle("show", isParent);
+      ackCheckbox.required = isParent;
+      if (!isParent) ackCheckbox.checked = false;
     });
     relSelect.dispatchEvent(new Event("change"));
   }
@@ -483,6 +517,17 @@
         statusMsg.textContent = "Please complete every field for each member before submitting.";
         return;
       }
+
+      var relLower = relationship.toLowerCase();
+      if (relLower === "father" || relLower === "mother") {
+        var ackCheckbox = b.querySelector(".ack-checkbox");
+        if (!ackCheckbox || !ackCheckbox.checked) {
+          statusMsg.className = "err";
+          statusMsg.textContent = "Please acknowledge the parent premium-sharing condition before submitting.";
+          return;
+        }
+      }
+
       members.push({
         fullName: fullName,
         dob: formatDobForSheet(dob),
