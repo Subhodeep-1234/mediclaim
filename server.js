@@ -11,6 +11,15 @@ const app = express();
 app.use(express.json());
 app.use(express.static(__dirname));
 
+if (!process.env.GOOGLE_SERVICE_ACCOUNT_KEY_B64) {
+  console.error(
+    "Missing GOOGLE_SERVICE_ACCOUNT_KEY_B64 env var. Set it in the deploy " +
+    "platform's environment/secrets config -- .env is gitignored and never " +
+    "reaches the container."
+  );
+  process.exit(1);
+}
+
 const serviceAccountKey = JSON.parse(
   Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_KEY_B64, "base64").toString("utf-8")
 );
@@ -87,4 +96,4 @@ async function handleSubmit(payload) {
   });
 }
 
-app.listen(PORT, () => console.log(`Mediclaim server listening on port ${PORT}`));
+app.listen(PORT, "0.0.0.0", () => console.log(`Mediclaim server listening on 0.0.0.0:${PORT}`));
