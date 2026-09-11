@@ -20,7 +20,7 @@ app.use(express.static(__dirname, { index: false }));
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type");
+  res.header("Access-Control-Allow-Headers", "Content-Type, X-Mediclaim-Submit");
   if (req.method === "OPTIONS") return res.sendStatus(204);
   next();
 });
@@ -29,10 +29,12 @@ app.get("/health", (req, res) => res.status(200).send("ok"));
 
 app.get("/", (req, res) => {
   // The reverse proxy in front of this app only forwards GET requests to
-  // "/", so a form submission is smuggled in as a GET with the payload in
-  // the query string rather than a POST body.
-  if (req.query.submit) {
-    return handleSubmitRequest(req.query.submit, res);
+  // "/", so a form submission rides along as a GET request, but the
+  // payload goes in a header (base64-encoded) rather than the query
+  // string/URL, so it doesn't end up in browser history or access logs.
+  const submitHeader = req.get("X-Mediclaim-Submit");
+  if (submitHeader) {
+    return handleSubmitRequest(submitHeader, res);
   }
 
   res.sendFile(path.join(__dirname, "index.html"), (err) => {
@@ -70,10 +72,10 @@ app.post("/", (req, res) => {
   submitAndRespond(req.body, res);
 });
 
-function handleSubmitRequest(rawJson, res) {
+function handleSubmitRequest(base64Json, res) {
   let payload;
   try {
-    payload = JSON.parse(rawJson);
+    payload = JSON.parse(Buffer.from(base64Json, "base64").toString("utf-8"));
   } catch (err) {
     return res.status(400).json({ ok: false, error: "Invalid payload" });
   }

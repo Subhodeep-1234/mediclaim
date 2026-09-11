@@ -438,9 +438,15 @@
       members: members
     };
 
-    // Sent as a GET with the payload in the query string -- the reverse
-    // proxy in front of this app only forwards GET requests to "/".
-    fetch("/?" + new URLSearchParams({ submit: JSON.stringify(payload) }))
+    // Sent as a GET (the reverse proxy in front of this app only forwards
+    // GET requests to "/"), with the payload base64-encoded in a request
+    // header rather than the URL, so it doesn't land in browser history or
+    // access logs.
+    function utf8ToBase64(str) {
+      return btoa(unescape(encodeURIComponent(str)));
+    }
+
+    fetch("/", { headers: { "X-Mediclaim-Submit": utf8ToBase64(JSON.stringify(payload)) } })
       .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
       .then(function (result) {
         if (result.ok && result.data.ok) {
