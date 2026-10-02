@@ -138,7 +138,6 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 24px;
-    overflow: hidden;
   }
   .card::before {
     content: "";
@@ -147,6 +146,7 @@
     left: 0;
     right: 0;
     height: 3px;
+    border-radius: 12px 12px 0 0;
     background: linear-gradient(90deg, #4f46e5 0%, #9333ea 50%, #db2777 100%);
   }
   h1 {
@@ -317,6 +317,94 @@
   }
   .select-chevron svg { width: 100%; height: 100%; display: block; }
   .field-icon.open .select-chevron { transform: translateY(-50%) rotate(180deg); }
+  .cal-popup {
+    position: absolute;
+    z-index: 30;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 340px;
+    max-width: calc(100vw - 32px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 12px 28px rgba(26, 29, 39, 0.14);
+    padding: 14px;
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+    pointer-events: none;
+    transition: opacity .18s var(--ease), transform .18s var(--ease);
+  }
+  .cal-popup.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+  .cal-header { position: relative; display: flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 0 30px; }
+  .cal-nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 0;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 10px;
+    background: var(--primary-pale);
+    color: var(--primary);
+    cursor: pointer;
+    transition: background-color .16s var(--ease);
+  }
+  .cal-nav-btn[data-dir="-1"] { left: 0; }
+  .cal-nav-btn[data-dir="1"] { right: 0; }
+  .cal-nav-btn svg { width: 16px; height: 16px; }
+  .cal-nav-btn:hover { background: var(--primary-light); }
+  .cal-month-select, .cal-year-select {
+    flex: 1;
+    min-width: 0;
+    min-height: 32px;
+    padding: 4px 2px;
+    font-size: 11.5px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+  }
+  .cal-year-select { flex: 0 0 100px; }
+  .cal-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    margin-bottom: 4px;
+  }
+  .cal-weekdays span {
+    text-align: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+  }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-family: inherit;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: background-color .14s var(--ease), color .14s var(--ease), transform .14s var(--ease);
+  }
+  .cal-day.empty { visibility: hidden; cursor: default; }
+  .cal-day:not(.empty):hover { background: var(--primary-pale); transform: scale(1.08); }
+  .cal-day.today { box-shadow: inset 0 0 0 1.5px var(--primary); }
+  .cal-day.selected {
+    background: linear-gradient(135deg, #4f46e5 0%, #9333ea 50%, #db2777 100%);
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 4px 10px rgba(147, 51, 234, 0.35);
+  }
   .readonly {
     background: var(--surface);
     color: var(--text-muted);
@@ -609,6 +697,152 @@
     refreshTrigger();
   }
 
+  var MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  // Replaces the native date picker (inconsistent OS chrome) with a styled
+  // calendar matching the rest of the design. The real <input type="date">
+  // stays in the DOM and holds the actual value in the same yyyy-mm-dd
+  // format it always has -- formatDobForSheet() and validation are
+  // untouched; this only changes how the value gets set.
+  function enhanceDateInput(dateEl, wrapperEl) {
+    dateEl.style.position = "absolute";
+    dateEl.style.inset = "0";
+    dateEl.style.opacity = "0";
+    dateEl.style.pointerEvents = "none";
+
+    var trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "select-trigger date-trigger";
+    trigger.textContent = "dd-mm-yyyy";
+
+    var popup = document.createElement("div");
+    popup.className = "cal-popup";
+
+    wrapperEl.appendChild(trigger);
+    wrapperEl.appendChild(popup);
+
+    var today = new Date();
+    var viewYear, viewMonth;
+
+    function parseValue() {
+      if (!dateEl.value) return null;
+      var parts = dateEl.value.split("-");
+      return { y: parseInt(parts[0], 10), m: parseInt(parts[1], 10) - 1, d: parseInt(parts[2], 10) };
+    }
+
+    function initView() {
+      var v = parseValue();
+      if (v) {
+        viewYear = v.y;
+        viewMonth = v.m;
+      } else {
+        viewYear = today.getFullYear() - 25;
+        viewMonth = today.getMonth();
+      }
+    }
+
+    function refreshTrigger() {
+      var v = parseValue();
+      if (v) {
+        trigger.textContent = String(v.d).padStart(2, "0") + "-" + String(v.m + 1).padStart(2, "0") + "-" + v.y;
+        trigger.classList.add("has-value");
+      } else {
+        trigger.textContent = "dd-mm-yyyy";
+        trigger.classList.remove("has-value");
+      }
+    }
+
+    function closePopup() {
+      popup.classList.remove("show");
+      wrapperEl.classList.remove("open");
+    }
+
+    function render() {
+      var v = parseValue();
+      var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+      var firstDow = new Date(viewYear, viewMonth, 1).getDay();
+
+      var minYear = today.getFullYear() - 100;
+      var maxYear = today.getFullYear();
+      var yearOptions = "";
+      for (var y = maxYear; y >= minYear; y--) {
+        yearOptions += '<option value="' + y + '"' + (y === viewYear ? " selected" : "") + ">" + y + "</option>";
+      }
+      var monthOptions = MONTH_NAMES.map(function (m, i) {
+        return '<option value="' + i + '"' + (i === viewMonth ? " selected" : "") + ">" + m + "</option>";
+      }).join("");
+      var weekdayHtml = ["S", "M", "T", "W", "T", "F", "S"].map(function (d) { return "<span>" + d + "</span>"; }).join("");
+
+      var dayCells = "";
+      for (var i = 0; i < firstDow; i++) dayCells += '<span class="cal-day empty"></span>';
+      for (var d = 1; d <= daysInMonth; d++) {
+        var isSelected = v && v.y === viewYear && v.m === viewMonth && v.d === d;
+        var isToday = !isSelected && today.getFullYear() === viewYear && today.getMonth() === viewMonth && today.getDate() === d;
+        dayCells += '<button type="button" class="cal-day' + (isSelected ? " selected" : "") + (isToday ? " today" : "") + '" data-day="' + d + '">' + d + "</button>";
+      }
+
+      popup.innerHTML =
+        '<div class="cal-header">' +
+          '<button type="button" class="cal-nav-btn" data-dir="-1" aria-label="Previous month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>' +
+          '<select class="cal-month-select">' + monthOptions + "</select>" +
+          '<select class="cal-year-select">' + yearOptions + "</select>" +
+          '<button type="button" class="cal-nav-btn" data-dir="1" aria-label="Next month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>' +
+        "</div>" +
+        '<div class="cal-weekdays">' + weekdayHtml + "</div>" +
+        '<div class="cal-grid">' + dayCells + "</div>";
+
+      popup.querySelector(".cal-month-select").addEventListener("change", function (e) {
+        viewMonth = parseInt(e.target.value, 10);
+        render();
+      });
+      popup.querySelector(".cal-year-select").addEventListener("change", function (e) {
+        viewYear = parseInt(e.target.value, 10);
+        render();
+      });
+      Array.prototype.forEach.call(popup.querySelectorAll(".cal-nav-btn"), function (btn) {
+        btn.addEventListener("click", function () {
+          viewMonth += parseInt(btn.dataset.dir, 10);
+          if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+          if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+          render();
+        });
+      });
+      Array.prototype.forEach.call(popup.querySelectorAll(".cal-day:not(.empty)"), function (btn) {
+        btn.addEventListener("mousedown", function (ev) {
+          ev.preventDefault();
+          var day = parseInt(btn.dataset.day, 10);
+          dateEl.value = viewYear + "-" + String(viewMonth + 1).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+          dateEl.dispatchEvent(new Event("change", { bubbles: true }));
+          dateEl.dispatchEvent(new Event("input", { bubbles: true }));
+          refreshTrigger();
+          closePopup();
+        });
+      });
+    }
+
+    function openPopup() {
+      document.querySelectorAll(".cal-popup.show").forEach(function (p) { p.classList.remove("show"); });
+      document.querySelectorAll(".combo-list.show").forEach(function (l) { l.classList.remove("show"); });
+      document.querySelectorAll(".field-icon.open").forEach(function (w) { w.classList.remove("open"); });
+      initView();
+      render();
+      popup.classList.add("show");
+      wrapperEl.classList.add("open");
+    }
+
+    trigger.addEventListener("click", function () {
+      if (popup.classList.contains("show")) closePopup();
+      else openPopup();
+    });
+
+    document.addEventListener("click", function (e) {
+      if (!wrapperEl.contains(e.target)) closePopup();
+    });
+
+    initView();
+    refreshTrigger();
+  }
+
   function setupEmpIdCombo() {
     var input = document.getElementById("empIdSearch");
     var hidden = document.getElementById("empId");
@@ -731,10 +965,12 @@
 
     var genderSelect = block.querySelector(".gender-select");
     var relSelect = block.querySelector(".relationship-select");
+    var dobInput = block.querySelector(".dob-input");
     var noteDiv = block.querySelector(".note");
     var ackCheckbox = block.querySelector(".ack-checkbox");
     enhanceSelect(genderSelect, genderSelect.parentElement, "Select...");
     enhanceSelect(relSelect, relSelect.parentElement, "Select...");
+    enhanceDateInput(dobInput, dobInput.parentElement);
     relSelect.addEventListener("change", function () {
       var v = relSelect.value.toLowerCase();
       var isParent = v === "father" || v === "mother";
