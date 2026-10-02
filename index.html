@@ -223,11 +223,12 @@
     background: var(--surface-sunken);
     border: 1px solid var(--border-light);
     border-radius: 12px;
-    transition: border-color .16s var(--ease), box-shadow .16s var(--ease);
+    transition: border-color .2s var(--ease), box-shadow .2s var(--ease), transform .2s var(--ease);
   }
   .member-block:focus-within {
     border-color: var(--primary-light);
-    box-shadow: 0 2px 10px rgba(24, 110, 231, 0.1);
+    box-shadow: 0 8px 24px rgba(79, 70, 229, 0.14);
+    transform: translateY(-2px);
   }
   .member-block h2 {
     display: flex;
@@ -277,12 +278,43 @@
     font-family: inherit;
     transition: border-color .16s var(--ease), box-shadow .16s var(--ease), transform .16s var(--ease);
   }
-  select:focus, input:focus {
+  select:focus, input:focus, .select-trigger:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 2px var(--primary-light);
+    box-shadow: 0 0 0 3px var(--primary-light), 0 0 16px rgba(24, 110, 231, 0.18);
     transform: translateY(-1px);
   }
+  .select-trigger {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 36px 8px 14px;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    color: var(--text-faint);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .16s var(--ease), box-shadow .16s var(--ease), transform .16s var(--ease);
+  }
+  .select-trigger.has-value { color: var(--text); }
+  .field-icon .select-trigger { padding-left: 42px; }
+  .select-chevron {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    color: var(--text-faint);
+    pointer-events: none;
+    transition: transform .16s var(--ease);
+  }
+  .select-chevron svg { width: 100%; height: 100%; display: block; }
+  .field-icon.open .select-chevron { transform: translateY(-50%) rotate(180deg); }
   .readonly {
     background: var(--surface);
     color: var(--text-muted);
@@ -339,8 +371,9 @@
     display: none;
   }
   .combo-list.show { display: block; }
-  .combo-item { padding: 10px 12px; font-size: 14px; cursor: pointer; }
+  .combo-item { padding: 10px 12px; font-size: 14px; cursor: pointer; border-radius: 8px; margin: 2px 4px; }
   .combo-item:hover { background: var(--primary-pale); }
+  .combo-item.selected { background: var(--border-light); font-weight: 600; }
   .combo-empty { padding: 10px 12px; font-size: 13px; color: var(--text-muted); }
   .remove-btn {
     font-size: 11.5px;
@@ -365,23 +398,33 @@
     border: 1px solid transparent;
     cursor: pointer;
     margin-top: 16px;
-    transition: background-color .16s var(--ease), border-color .16s var(--ease), color .16s var(--ease), transform .16s var(--ease);
+    transition: background-color .16s var(--ease), border-color .16s var(--ease), color .16s var(--ease), transform .16s var(--ease), filter .16s var(--ease), box-shadow .16s var(--ease);
   }
-  .add-btn:active, .submit-btn:active:not(:disabled) { transform: translateY(1px); }
+  .add-btn:active, .submit-btn:active:not(:disabled) { transform: translateY(1px) scale(0.99); }
   .add-btn {
-    background: var(--surface);
-    color: var(--primary);
-    border-color: var(--border);
+    background: var(--primary-pale);
+    color: var(--primary-dark);
+    border: 1.5px dashed var(--primary-light);
+    border-radius: 16px;
+    font-weight: 700;
   }
-  .add-btn:hover { background: var(--primary-pale); border-color: var(--primary-light); }
+  .add-btn:hover { background: var(--primary-light); border-color: var(--primary); }
   .submit-btn {
-    background: var(--primary);
+    background: linear-gradient(90deg, #4f46e5 0%, #9333ea 50%, #db2777 100%);
     color: #fff;
     margin-top: 24px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 15px;
+    box-shadow: 0 10px 24px rgba(147, 51, 234, 0.3);
   }
-  .submit-btn:hover:not(:disabled) { background: var(--primary-dark); }
+  .submit-btn:hover:not(:disabled) {
+    filter: brightness(1.06);
+    box-shadow: 0 12px 28px rgba(147, 51, 234, 0.4);
+  }
   .submit-btn:disabled {
     background: var(--text-faint);
+    box-shadow: none;
     cursor: default;
   }
   #statusMsg {
@@ -472,6 +515,7 @@
       opt.textContent = c;
       companySel.appendChild(opt);
     });
+    enhanceSelect(companySel, companySel.parentElement, "Select company...");
 
     setupEmpIdCombo();
 
@@ -481,6 +525,85 @@
     document.getElementById("mainForm").addEventListener("change", updateProgress);
 
     addMemberBlock(true);
+  }
+
+  // Replaces a native <select>'s open-dropdown appearance with a styled
+  // list (matching the combo-list design already used for Employee ID),
+  // while the real <select> stays in the DOM -- fully functional, still
+  // reporting .value/.required to the exact same validation and submit
+  // logic as before. It's just visually overlaid rather than removed.
+  function enhanceSelect(selectEl, wrapperEl, placeholder) {
+    selectEl.style.position = "absolute";
+    selectEl.style.inset = "0";
+    selectEl.style.opacity = "0";
+    selectEl.style.pointerEvents = "none";
+
+    var trigger = document.createElement("button");
+    trigger.type = "button";
+    trigger.className = "select-trigger";
+    trigger.textContent = placeholder;
+
+    var chevron = document.createElement("span");
+    chevron.className = "select-chevron";
+    chevron.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
+
+    var list = document.createElement("div");
+    list.className = "combo-list";
+
+    wrapperEl.appendChild(trigger);
+    wrapperEl.appendChild(chevron);
+    wrapperEl.appendChild(list);
+
+    function refreshTrigger() {
+      var selected = selectEl.options[selectEl.selectedIndex];
+      if (selectEl.value) {
+        trigger.textContent = selected.textContent;
+        trigger.classList.add("has-value");
+      } else {
+        trigger.textContent = placeholder;
+        trigger.classList.remove("has-value");
+      }
+    }
+
+    function closeList() {
+      list.classList.remove("show");
+      wrapperEl.classList.remove("open");
+    }
+
+    function renderList() {
+      list.innerHTML = "";
+      Array.prototype.forEach.call(selectEl.options, function (opt) {
+        if (!opt.value) return;
+        var item = document.createElement("div");
+        item.className = "combo-item" + (opt.value === selectEl.value ? " selected" : "");
+        item.textContent = opt.textContent;
+        item.addEventListener("mousedown", function (ev) {
+          ev.preventDefault();
+          selectEl.value = opt.value;
+          selectEl.dispatchEvent(new Event("change", { bubbles: true }));
+          refreshTrigger();
+          closeList();
+        });
+        list.appendChild(item);
+      });
+    }
+
+    trigger.addEventListener("click", function () {
+      var isOpen = list.classList.contains("show");
+      document.querySelectorAll(".combo-list.show").forEach(function (l) { l.classList.remove("show"); });
+      document.querySelectorAll(".field-icon.open").forEach(function (w) { w.classList.remove("open"); });
+      if (!isOpen) {
+        renderList();
+        list.classList.add("show");
+        wrapperEl.classList.add("open");
+      }
+    });
+
+    document.addEventListener("click", function (e) {
+      if (!wrapperEl.contains(e.target)) closeList();
+    });
+
+    refreshTrigger();
   }
 
   function setupEmpIdCombo() {
@@ -603,9 +726,12 @@
 
     container.appendChild(block);
 
+    var genderSelect = block.querySelector(".gender-select");
     var relSelect = block.querySelector(".relationship-select");
     var noteDiv = block.querySelector(".note");
     var ackCheckbox = block.querySelector(".ack-checkbox");
+    enhanceSelect(genderSelect, genderSelect.parentElement, "Select...");
+    enhanceSelect(relSelect, relSelect.parentElement, "Select...");
     relSelect.addEventListener("change", function () {
       var v = relSelect.value.toLowerCase();
       var isParent = v === "father" || v === "mother";
