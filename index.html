@@ -158,23 +158,91 @@
     color: var(--text);
     text-wrap: balance;
   }
-  .subtitle { font-size: 14px; line-height: 1.63; color: var(--text-muted); margin-bottom: 24px; }
+  .subtitle { font-size: 14px; line-height: 1.63; color: var(--text-muted); margin-bottom: 16px; }
+  .progress-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .progress-copy { font-size: 13px; line-height: 1.5; color: var(--text-muted); max-width: 62%; }
+  .progress-percent { text-align: right; white-space: nowrap; }
+  .progress-percent-num {
+    display: block;
+    font-family: "Inter", sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    line-height: 1.2;
+    background: linear-gradient(90deg, #4f46e5 0%, #9333ea 50%, #db2777 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .progress-percent-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--text-faint);
+  }
+  .progress-track {
+    height: 6px;
+    background: var(--border-light);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #4f46e5 0%, #9333ea 50%, #db2777 100%);
+    transition: width .3s var(--ease);
+  }
+  .section-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin: 4px 0 8px 0;
+  }
+  .section-label::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
   .member-block {
     margin-top: 24px;
     padding: 20px;
     background: var(--surface-sunken);
     border: 1px solid var(--border-light);
     border-radius: 12px;
+    transition: border-color .16s var(--ease), box-shadow .16s var(--ease);
+  }
+  .member-block:focus-within {
+    border-color: var(--primary-light);
+    box-shadow: 0 2px 10px rgba(24, 110, 231, 0.1);
   }
   .member-block h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     font-family: "Inter", sans-serif;
     font-weight: 700;
-    font-size: 15px;
-    letter-spacing: -0.2px;
-    margin: 0 0 12px 0;
-    color: var(--text);
+    font-size: 11.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0 0 16px 0;
+    color: var(--text-faint);
   }
-  .member-block[data-primary="true"] h2 { color: var(--primary); }
+  .member-block h2 .section-label-line { flex: 1; height: 1px; background: var(--border); }
+  .member-block[data-primary="true"] h2 .section-label-text { color: var(--primary); }
   label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin: 16px 0 8px 0; }
   label .req { color: var(--danger); margin-left: 2px; }
   .ack-row {
@@ -199,31 +267,49 @@
   }
   select, input[type="text"], input[type="date"] {
     width: 100%;
-    min-height: 42px;
-    padding: 8px 12px;
+    min-height: 44px;
+    padding: 8px 14px;
     font-size: 14px;
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 14px;
     background: var(--surface);
     color: var(--text);
     font-family: inherit;
-    transition: border-color .16s var(--ease), box-shadow .16s var(--ease);
+    transition: border-color .16s var(--ease), box-shadow .16s var(--ease), transform .16s var(--ease);
   }
   select:focus, input:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 2px var(--primary-light);
+    transform: translateY(-1px);
   }
   .readonly {
     background: var(--surface);
     color: var(--text-muted);
-    min-height: 42px;
-    padding: 8px 12px;
-    border-radius: 12px;
+    min-height: 44px;
+    padding: 8px 14px;
+    border-radius: 14px;
     font-size: 14px;
     border: 1px dashed var(--border);
     display: flex;
     align-items: center;
+  }
+  .field-icon { position: relative; }
+  .field-icon > svg {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: var(--text-faint);
+    pointer-events: none;
+  }
+  .field-icon select,
+  .field-icon input[type="text"],
+  .field-icon input[type="date"],
+  .field-icon .readonly {
+    padding-left: 42px;
   }
   .note {
     display: none;
@@ -257,14 +343,16 @@
   .combo-item:hover { background: var(--primary-pale); }
   .combo-empty { padding: 10px 12px; font-size: 13px; color: var(--text-muted); }
   .remove-btn {
-    float: right;
-    font-size: 13px;
-    font-weight: 600;
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
     color: var(--danger);
     background: none;
     border: none;
     cursor: pointer;
     padding: 0;
+    white-space: nowrap;
   }
   .add-btn, .submit-btn {
     width: 100%;
@@ -321,20 +409,38 @@
   <h1>Mediclaim Addition Request</h1>
   <div class="subtitle">Fill in your details below. If you are adding family members, use &ldquo;+ Add Family Member&rdquo; for each one.</div>
 
+  <div class="progress-row">
+    <div class="progress-copy">A few quick details &mdash; about a minute.</div>
+    <div class="progress-percent">
+      <span class="progress-percent-num" id="progressPercentNum">0%</span>
+      <span class="progress-percent-label">COMPLETE</span>
+    </div>
+  </div>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+
+  <div class="section-label"><span>Employee Details</span></div>
+
   <label for="company">Company Name<span class="req">*</span></label>
-  <select id="company" required>
-    <option value="">Select company...</option>
-  </select>
+  <div class="field-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 21v-4h6v4"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>
+    <select id="company" required>
+      <option value="">Select company...</option>
+    </select>
+  </div>
 
   <label for="empIdSearch">Employee ID<span class="req">*</span></label>
-  <div class="combo">
+  <div class="combo field-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
     <input type="text" id="empIdSearch" placeholder="Type your Emp ID or name to search..." autocomplete="off" required>
     <input type="hidden" id="empId">
     <div class="combo-list" id="empIdList"></div>
   </div>
 
   <label>Full Name</label>
-  <div class="readonly" id="empFullName">-</div>
+  <div class="field-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/></svg>
+    <div class="readonly" id="empFullName">-</div>
+  </div>
 
   <div id="membersContainer"></div>
 
@@ -371,6 +477,8 @@
 
     document.getElementById("addMemberBtn").addEventListener("click", function () { addMemberBlock(false); });
     document.getElementById("mainForm").addEventListener("submit", onSubmit);
+    document.getElementById("mainForm").addEventListener("input", updateProgress);
+    document.getElementById("mainForm").addEventListener("change", updateProgress);
 
     addMemberBlock(true);
   }
@@ -429,6 +537,7 @@
     var name = emp ? emp.fullName : "-";
     document.getElementById("empFullName").textContent = name;
     updatePrimaryFullName(name);
+    updateProgress();
   }
 
   function updatePrimaryFullName(name) {
@@ -449,6 +558,11 @@
     var titleText = isPrimary ? "Your Details" : "Family Member";
     var removeBtn = isPrimary ? "" : ('<button type="button" class="remove-btn" onclick="removeBlock(' + idx + ')">Remove</button>');
 
+    var personIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-3.5 3.1-6 7-6s7 2.5 7 6"/></svg>';
+    var calendarIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg>';
+    var genderIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="2.6"/><path d="M7.5 18c.8-2.4 2.4-3.6 4.5-3.6s3.7 1.2 4.5 3.6"/></svg>';
+    var relationshipIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 2.7-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.4"/><path d="M15.5 20c.3-2.2 1.8-3.8 3.9-3.8"/></svg>';
+
     var nameFieldHtml = isPrimary
       ? '<div class="readonly full-name-readonly">-</div>'
       : '<input type="text" class="full-name-input" placeholder="Family member&#39;s full name" required>';
@@ -457,25 +571,28 @@
     var nameLabel = isPrimary ? "Full Name" : 'Full Name<span class="req">*</span>';
 
     block.innerHTML =
-      "<h2>" + titleText + removeBtn + "</h2>" +
-      "<label>" + nameLabel + "</label>" + nameFieldHtml +
+      '<h2><span class="section-label-text">' + titleText + '</span><span class="section-label-line"></span>' + removeBtn + "</h2>" +
+      "<label>" + nameLabel + "</label>" +
+      '<div class="field-icon">' + personIcon + nameFieldHtml + "</div>" +
       "<label>Addition Date</label>" +
-      ('<div class="readonly addition-date">' + FORM_DATA.additionDate + "</div>") +
+      ('<div class="field-icon">' + calendarIcon + '<div class="readonly addition-date">' + FORM_DATA.additionDate + "</div></div>") +
       '<label>Date of Birth<span class="req">*</span></label>' +
-      '<input type="date" class="dob-input" required>' +
+      '<div class="field-icon">' + calendarIcon + '<input type="date" class="dob-input" required></div>' +
       '<label>Gender<span class="req">*</span></label>' +
+      '<div class="field-icon">' + genderIcon +
       '<select class="gender-select" required>' +
         '<option value="">Select...</option>' +
         FORM_DATA.genders.map(function (g) { return '<option value="' + g + '">' + g + "</option>"; }).join("") +
-      "</select>" +
+      "</select></div>" +
       '<label>Relationship<span class="req">*</span></label>' +
+      '<div class="field-icon">' + relationshipIcon +
       '<select class="relationship-select" required>' +
         '<option value="">Select...</option>' +
         FORM_DATA.relationships.map(function (r) {
           var sel = (isPrimary && r === "Self") ? " selected" : "";
           return '<option value="' + r + '"' + sel + ">" + r + "</option>";
         }).join("") +
-      "</select>" +
+      "</select></div>" +
       '<div class="note">' +
         "To add your parents, you need to pay half the premium amount yourself, and the other half will be covered by the company." +
         '<div class="ack-row">' +
@@ -495,13 +612,46 @@
       noteDiv.classList.toggle("show", isParent);
       ackCheckbox.required = isParent;
       if (!isParent) ackCheckbox.checked = false;
+      updateProgress();
     });
     relSelect.dispatchEvent(new Event("change"));
+    updateProgress();
   }
 
   function removeBlock(idx) {
     var block = document.querySelector('.member-block[data-index="' + idx + '"]');
     if (block) block.remove();
+    updateProgress();
+  }
+
+  function updateProgress() {
+    var total = 2;
+    var filled = 0;
+    if (document.getElementById("company").value) filled++;
+    if (document.getElementById("empId").value) filled++;
+
+    document.querySelectorAll(".member-block").forEach(function (b) {
+      var isPrimary = b.dataset.primary === "true";
+      var fullName = isPrimary
+        ? b.querySelector(".full-name-readonly").textContent
+        : b.querySelector(".full-name-input").value.trim();
+      total++; if (fullName && fullName !== "-") filled++;
+
+      total++; if (b.querySelector(".dob-input").value) filled++;
+      total++; if (b.querySelector(".gender-select").value) filled++;
+      total++; if (b.querySelector(".relationship-select").value) filled++;
+
+      var ack = b.querySelector(".ack-checkbox");
+      if (ack && ack.required) {
+        total++; if (ack.checked) filled++;
+      }
+    });
+
+    var pct = total ? Math.round((filled / total) * 100) : 0;
+    var fillEl = document.getElementById("progressFill");
+    var numEl = document.getElementById("progressPercentNum");
+    if (fillEl) fillEl.style.width = pct + "%";
+    if (numEl) numEl.textContent = pct + "%";
   }
 
   function formatDobForSheet(isoDate) {
