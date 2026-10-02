@@ -336,20 +336,16 @@
   }
   .cal-popup.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
   .cal-header { display: flex; align-items: center; gap: 5px; margin-bottom: 8px; }
-  .cal-month-select, .cal-year-select {
-    flex: 1;
-    min-width: 0;
+  .cal-select-wrap { position: relative; flex: 1; min-width: 0; }
+  .cal-select-wrap.year { flex: 0 0 95px; }
+  .cal-select-wrap .select-trigger {
     min-height: 28px;
-    padding: 3px 2px;
+    padding: 3px 20px 3px 8px;
     font-size: 11px;
     font-weight: 600;
-    border: 1px solid var(--border);
     border-radius: 9px;
-    background: var(--surface);
-    color: var(--text);
-    font-family: inherit;
   }
-  .cal-year-select { flex: 0 0 95px; }
+  .cal-select-wrap .select-chevron { right: 6px; width: 11px; height: 11px; }
   .cal-weekdays {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
@@ -604,7 +600,7 @@
   // while the real <select> stays in the DOM -- fully functional, still
   // reporting .value/.required to the exact same validation and submit
   // logic as before. It's just visually overlaid rather than removed.
-  function enhanceSelect(selectEl, wrapperEl, placeholder) {
+  function enhanceSelect(selectEl, wrapperEl, placeholder, extraTriggerClass) {
     selectEl.style.position = "absolute";
     selectEl.style.inset = "0";
     selectEl.style.opacity = "0";
@@ -612,7 +608,7 @@
 
     var trigger = document.createElement("button");
     trigger.type = "button";
-    trigger.className = "select-trigger";
+    trigger.className = "select-trigger" + (extraTriggerClass ? " " + extraTriggerClass : "");
     trigger.textContent = placeholder;
 
     var chevron = document.createElement("span");
@@ -764,17 +760,21 @@
 
       popup.innerHTML =
         '<div class="cal-header">' +
-          '<select class="cal-month-select">' + monthOptions + "</select>" +
-          '<select class="cal-year-select">' + yearOptions + "</select>" +
+          '<div class="cal-select-wrap"><select class="cal-month-real">' + monthOptions + "</select></div>" +
+          '<div class="cal-select-wrap year"><select class="cal-year-real">' + yearOptions + "</select></div>" +
         "</div>" +
         '<div class="cal-weekdays">' + weekdayHtml + "</div>" +
         '<div class="cal-grid">' + dayCells + "</div>";
 
-      popup.querySelector(".cal-month-select").addEventListener("change", function (e) {
+      var monthSel = popup.querySelector(".cal-month-real");
+      var yearSel = popup.querySelector(".cal-year-real");
+      enhanceSelect(monthSel, monthSel.parentElement, "", "cal-month-select");
+      enhanceSelect(yearSel, yearSel.parentElement, "", "cal-year-select");
+      monthSel.addEventListener("change", function (e) {
         viewMonth = parseInt(e.target.value, 10);
         render();
       });
-      popup.querySelector(".cal-year-select").addEventListener("change", function (e) {
+      yearSel.addEventListener("change", function (e) {
         viewYear = parseInt(e.target.value, 10);
         render();
       });
