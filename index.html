@@ -1067,7 +1067,7 @@
       return btoa(unescape(encodeURIComponent(str)));
     }
 
-    fetch("/", { headers: { "X-Mediclaim-Submit": utf8ToBase64(JSON.stringify(payload)) } })
+    fetch("./", { headers: { "X-Mediclaim-Submit": utf8ToBase64(JSON.stringify(payload)) } })
       .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
       .then(function (result) {
         if (result.ok && result.data.ok) {
